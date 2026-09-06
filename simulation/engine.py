@@ -2,6 +2,7 @@ from agents.memory import MemoryManager
 from events.models import Event
 from .actions import Action, ActionTypes
 from .decision import get_decision_engine
+from .observation import ObservationBuilder
 
 class SimulationEngine:
 
@@ -214,7 +215,17 @@ class SimulationEngine:
         return results
     def run_agent(self, agent):
 
-        observation = self.observe(agent)
+        observation = ObservationBuilder(
+            self.world
+        ).build(agent)
+
+        memory = MemoryManager(agent)
+
+        memory.remember(
+            "observation",
+            observation.to_dict(),
+            tick=self.world.current_tick,
+        )
 
         decision_engine = get_decision_engine(agent)
 
@@ -224,8 +235,6 @@ class SimulationEngine:
         )
 
         result = self.execute(action)
-
-        memory = MemoryManager(agent)
 
         memory.remember(
         "action_result",

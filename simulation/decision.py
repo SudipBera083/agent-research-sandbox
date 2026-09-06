@@ -1,6 +1,5 @@
 from abc import ABC, abstractmethod
 
-from agents.memory import MemoryManager
 from .actions import Action, ActionTypes
 
 class DecisionEngine(ABC):
@@ -13,19 +12,7 @@ class RuleBasedDecisionEngine(DecisionEngine):
 
     def decide(self, agent, observation) -> Action:
 
-        memory = MemoryManager(agent)
-
-        memory.remember(
-            "observation",
-            {
-                "resources": observation["resources"],
-                "wallet": agent.wallet,
-                "inventory": agent.inventory,
-            },
-            tick=agent.world.current_tick,
-        )
-
-        resources = observation["resources"]
+        resources = observation.world_state["resources"]
 
         food = next(
             (
@@ -36,7 +23,7 @@ class RuleBasedDecisionEngine(DecisionEngine):
             None,
         )
 
-        current_food = agent.inventory.get(
+        current_food = observation.self_state["inventory"].get(
             "food",
             0,
         )
@@ -44,7 +31,7 @@ class RuleBasedDecisionEngine(DecisionEngine):
         if food and current_food < 5:
 
             affordable_quantity = int(
-                agent.wallet // food["price"]
+                observation.self_state["wallet"] // food["price"]
             )
 
             quantity = min(
@@ -56,7 +43,7 @@ class RuleBasedDecisionEngine(DecisionEngine):
             if quantity > 0:
 
                 return Action(
-                    agent_id=agent.id,
+                    agent_id=observation.self_state["id"],
                     action_type=ActionTypes.BUY,
                     parameters={
                         "resource": "food",
@@ -65,7 +52,7 @@ class RuleBasedDecisionEngine(DecisionEngine):
                 )
 
         return Action(
-            agent_id=agent.id,
+            agent_id=observation.self_state["id"],
             action_type=ActionTypes.WAIT,
             parameters={},
         )
@@ -74,7 +61,7 @@ class WealthDecisionEngine(DecisionEngine):
 
     def decide(self, agent, observation) -> Action:
 
-        resources = observation["resources"]
+        resources = observation.world_state["resources"]
 
         food = next(
             (
@@ -87,16 +74,19 @@ class WealthDecisionEngine(DecisionEngine):
 
         if food is None:
             return Action(
-                agent_id=agent.id,
+                agent_id=observation.self_state["id"],
                 action_type=ActionTypes.WAIT,
                 parameters={},
             )
 
         # Wealth agent only buys if price is attractive.
-        if food["price"] <= 10 and agent.wallet >= food["price"]:
+        if (
+            food["price"] <= 10
+            and observation.self_state["wallet"] >= food["price"]
+        ):
 
             return Action(
-                agent_id=agent.id,
+                agent_id=observation.self_state["id"],
                 action_type=ActionTypes.BUY,
                 parameters={
                     "resource": "food",
@@ -105,7 +95,7 @@ class WealthDecisionEngine(DecisionEngine):
             )
 
         return Action(
-            agent_id=agent.id,
+            agent_id=observation.self_state["id"],
             action_type=ActionTypes.WAIT,
             parameters={},
         )
@@ -114,14 +104,14 @@ class SurvivalDecisionEngine(DecisionEngine):
 
     def decide(self, agent, observation) -> Action:
 
-        food = agent.inventory.get(
+        food = observation.self_state["inventory"].get(
             "food",
             0,
         )
 
         if food < 8:
 
-            resources = observation["resources"]
+            resources = observation.world_state["resources"]
 
             food_resource = next(
                 (
@@ -135,7 +125,7 @@ class SurvivalDecisionEngine(DecisionEngine):
             if food_resource:
 
                 affordable = int(
-                    agent.wallet
+                    observation.self_state["wallet"]
                     // food_resource["price"]
                 )
 
@@ -148,7 +138,7 @@ class SurvivalDecisionEngine(DecisionEngine):
                 if quantity > 0:
 
                     return Action(
-                        agent_id=agent.id,
+                        agent_id=observation.self_state["id"],
                         action_type=ActionTypes.BUY,
                         parameters={
                             "resource": "food",
@@ -157,7 +147,7 @@ class SurvivalDecisionEngine(DecisionEngine):
                     )
 
         return Action(
-            agent_id=agent.id,
+            agent_id=observation.self_state["id"],
             action_type=ActionTypes.WAIT,
             parameters={},
         )
@@ -166,14 +156,14 @@ class CooperativeDecisionEngine(DecisionEngine):
 
     def decide(self, agent, observation) -> Action:
 
-        food = agent.inventory.get(
+        food = observation.self_state["inventory"].get(
             "food",
             0,
         )
 
         if food < 5:
 
-            resources = observation["resources"]
+            resources = observation.world_state["resources"]
 
             food_resource = next(
                 (
@@ -187,14 +177,14 @@ class CooperativeDecisionEngine(DecisionEngine):
             if food_resource:
 
                 affordable = int(
-                    agent.wallet
+                    observation.self_state["wallet"]
                     // food_resource["price"]
                 )
 
                 if affordable > 0:
 
                     return Action(
-                        agent_id=agent.id,
+                        agent_id=observation.self_state["id"],
                         action_type=ActionTypes.BUY,
                         parameters={
                             "resource": "food",
@@ -203,7 +193,7 @@ class CooperativeDecisionEngine(DecisionEngine):
                     )
 
         return Action(
-            agent_id=agent.id,
+            agent_id=observation.self_state["id"],
             action_type=ActionTypes.WAIT,
             parameters={},
         )
