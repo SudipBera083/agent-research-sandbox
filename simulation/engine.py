@@ -1,11 +1,13 @@
 from events.models import Event
 from .actions import Action, ActionTypes
-
+from .decision import DecisionEngine
+from agents.memory import MemoryManager
 
 class SimulationEngine:
 
-    def __init__(self, world):
+    def __init__(self,world,decision_engine: DecisionEngine | None = None,):
         self.world = world
+        self.decision_engine = decision_engine
 
     def log_event(
         self,
@@ -211,3 +213,32 @@ class SimulationEngine:
         self.tick()
 
         return results
+    def run_agent(self, agent):
+
+        observation = self.observe(agent)
+
+        action = self.decision_engine.decide(
+        agent,
+        observation,
+    )
+
+        result = self.execute(action)
+
+        memory = MemoryManager(agent)
+
+        memory.remember(
+        "action_result",
+        {
+            "action": action.action_type,
+            "parameters": action.parameters,
+            "result": result,
+        },
+        tick=self.world.current_tick,
+    )
+
+        return {
+        "agent": agent.name,
+        "action": action.action_type,
+        "parameters": action.parameters,
+        "result": result,
+    }

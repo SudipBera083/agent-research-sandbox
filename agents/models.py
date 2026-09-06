@@ -27,3 +27,31 @@ class Agent(models.Model):
 
     def __str__(self):
         return self.name
+
+class AgentMemory(models.Model):
+    agent = models.ForeignKey(
+        Agent,
+        on_delete=models.CASCADE,
+        related_name="memories",
+    )
+
+    memory_type = models.CharField(
+        max_length=50,
+        default="observation",
+    )
+
+    content = models.JSONField(default=dict)
+
+    importance = models.IntegerField(default=1)
+
+    tick = models.IntegerField()
+
+    created_at = models.DateTimeField(
+        auto_now_add=True
+    )
+
+    class Meta:
+        ordering = ["-tick", "-created_at"]
+
+    def __str__(self):
+        return f"{self.agent.name} - {self.memory_type}"
