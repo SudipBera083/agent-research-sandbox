@@ -7,6 +7,8 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
+from .insights import BenchmarkInsights
+
 
 class BenchmarkReporter:
     """
@@ -42,6 +44,7 @@ class BenchmarkReporter:
             "scenario_comparison": self.scenario_comparison(rows),
             "findings": self.findings(rows),
             "charts": self.charts(rows),
+            "insights": BenchmarkInsights(self.suite).report(),
         }
 
     # ------------------------------------------------------------------
