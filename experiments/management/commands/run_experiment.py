@@ -31,6 +31,7 @@ class Command(BaseCommand):
                     {
                         "name": "Agent 1",
                         "role": "wealth",
+                        "runtime_type": "llm",
                         "wallet": 100,
                         "goals": [
                             "Maximize wealth"

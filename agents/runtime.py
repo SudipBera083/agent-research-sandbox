@@ -12,6 +12,9 @@ class AgentRuntime:
     def decide(self, agent, observation):
         raise NotImplementedError
 
+    def trace_metadata(self):
+        return {}
+
 
 class RuleAgentRuntime(AgentRuntime):
 
@@ -52,6 +55,16 @@ class RandomAgentRuntime(AgentRuntime):
 
 
 def get_agent_runtime(agent):
+
+    if agent.runtime_type == "llm":
+        from .llm_runtime import (
+            DeterministicLLMProvider,
+            LLMAgentRuntime,
+        )
+
+        return LLMAgentRuntime(
+            DeterministicLLMProvider()
+        )
 
     if agent.runtime_type == "random":
         return RandomAgentRuntime()

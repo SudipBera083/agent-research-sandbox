@@ -341,16 +341,19 @@ class SimulationEngine:
     )
 
         if self.experiment is not None:
+            decision_data = {
+                "runtime": runtime.runtime_type,
+                "backend": runtime.__class__.__name__,
+                "action_type": action.action_type,
+            }
+            decision_data.update(runtime.trace_metadata())
+
             DecisionTrace.objects.create(
                 experiment=self.experiment,
                 tick=self.world.current_tick,
                 agent=agent,
                 observation=observation.to_dict(),
-                decision={
-                    "runtime": runtime.runtime_type,
-                    "backend": runtime.__class__.__name__,
-                    "action_type": action.action_type,
-                },
+                decision=decision_data,
                 action={
                     "type": action.action_type,
                     "parameters": action.parameters,
