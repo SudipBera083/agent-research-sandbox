@@ -136,3 +136,53 @@ class Message(models.Model):
             f"{self.sender.name} -> broadcast: "
             f"{self.content[:40]}"
         )
+
+
+class Trade(models.Model):
+    STATUS_CHOICES: ClassVar = [
+        ("proposed", "Proposed"),
+        ("accepted", "Accepted"),
+        ("rejected", "Rejected"),
+        ("completed", "Completed"),
+        ("failed", "Failed"),
+    ]
+
+    conversation = models.ForeignKey(
+        "simulation.Conversation",
+        on_delete=models.CASCADE,
+        related_name="trades",
+    )
+
+    proposer = models.ForeignKey(
+        "agents.Agent",
+        on_delete=models.CASCADE,
+        related_name="proposed_trades",
+    )
+
+    recipient = models.ForeignKey(
+        "agents.Agent",
+        on_delete=models.CASCADE,
+        related_name="received_trades",
+    )
+
+    offer = models.JSONField(default=dict)
+
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default="proposed",
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+
+    updated_at = models.DateTimeField(
+        auto_now=True,
+    )
+
+    def __str__(self):
+        return (
+            f"Trade {self.id}: "
+            f"{self.proposer} -> {self.recipient}"
+        )
