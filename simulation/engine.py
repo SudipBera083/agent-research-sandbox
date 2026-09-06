@@ -3,10 +3,10 @@ from events.models import Event
 from experiments.models import DecisionTrace
 from .actions import Action, ActionTypes
 from .communication import CommunicationManager
-from .decision import get_decision_engine
 from .models import Conversation, Trade
 from .observation import ObservationBuilder
 from .trading import TradeEngine
+from agents.runtime import get_agent_runtime
 
 class SimulationEngine:
 
@@ -321,9 +321,9 @@ class SimulationEngine:
             tick=self.world.current_tick,
         )
 
-        decision_engine = get_decision_engine(agent)
+        runtime = get_agent_runtime(agent)
 
-        action = decision_engine.decide(
+        action = runtime.decide(
             agent,
             observation,
         )
@@ -347,7 +347,8 @@ class SimulationEngine:
                 agent=agent,
                 observation=observation.to_dict(),
                 decision={
-                    "engine": decision_engine.__class__.__name__,
+                    "runtime": runtime.runtime_type,
+                    "backend": runtime.__class__.__name__,
                     "action_type": action.action_type,
                 },
                 action={

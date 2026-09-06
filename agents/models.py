@@ -8,6 +8,11 @@ class Agent(models.Model):
         default="general",
     )
 
+    runtime_type = models.CharField(
+        max_length=30,
+        default="rule",
+    )
+
     system_prompt = models.TextField()
 
     goals = models.JSONField(default=list)

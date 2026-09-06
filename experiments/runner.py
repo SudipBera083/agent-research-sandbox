@@ -52,6 +52,10 @@ class ExperimentRunner:
                     "role",
                     "general",
                 ),
+                runtime_type=agent_config.get(
+                    "runtime_type",
+                    "rule",
+                ),
                 world=world,
                 system_prompt=agent_config.get(
                     "system_prompt",
