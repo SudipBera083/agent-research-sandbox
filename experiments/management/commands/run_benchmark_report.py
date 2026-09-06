@@ -127,6 +127,50 @@ class Command(BaseCommand):
             else:
                 self.stdout.write(f"  {llm_info.get('message', 'No Groq runtime data present in this suite.')}")
 
+        # --- decision summary ---
+        dec_summary = report.get("decision_summary", {})
+        if dec_summary:
+            self.stdout.write("\nDecision Summary")
+            self.stdout.write("----------------")
+
+            self.stdout.write("\nOverall leader:")
+            leader = dec_summary.get("overall_leader", {})
+            if leader.get("available"):
+                self.stdout.write(f"  {leader.get('runtime')}")
+            else:
+                self.stdout.write("  unavailable")
+
+            self.stdout.write("\nScenario leadership:")
+            for item in dec_summary.get("scenario_leaders", []):
+                self.stdout.write(f"  {item.get('scenario'):<22} {item.get('winning_runtime')}")
+
+            self.stdout.write("\nMost consistent:")
+            consistent = dec_summary.get("most_consistent_runtime", {})
+            if consistent.get("available"):
+                self.stdout.write(f"  {consistent.get('runtime')} - {consistent.get('classification')}")
+            else:
+                self.stdout.write("  unavailable")
+
+            self.stdout.write("\nStrongest observed difference:")
+            adv = dec_summary.get("strongest_observed_advantage", {})
+            if adv.get("available"):
+                self.stdout.write(
+                    f"  {adv.get('metric')}: {adv.get('runtime_a')} vs {adv.get('runtime_b')} = +{adv.get('difference')}"
+                )
+            else:
+                self.stdout.write("  unavailable")
+
+            self.stdout.write("\nLLM:")
+            llm_summary = dec_summary.get("llm_assessment", {})
+            if llm_summary.get("available"):
+                self.stdout.write(f"  provider:        {llm_summary.get('provider')}")
+                self.stdout.write(f"  model:           {llm_summary.get('model')}")
+                self.stdout.write(f"  average latency: {llm_summary.get('average_latency_ms')} ms")
+                self.stdout.write(f"  total tokens:    {llm_summary.get('total_tokens')}")
+                self.stdout.write(f"  failures:        {llm_summary.get('failure_count')}")
+            else:
+                self.stdout.write("  unavailable")
+
         self.stdout.write(
             f"\nRows: {len(report['rows'])}  "
             f"Scenarios: {len(report['scenario_comparison'])}  "

@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from .insights import BenchmarkInsights
+from .decision_summary import BenchmarkDecisionSummary
 
 
 class BenchmarkReporter:
@@ -33,6 +34,7 @@ class BenchmarkReporter:
 
     def build(self):
         rows = self.rows()
+        insights_report = BenchmarkInsights(self.suite).report()
         return {
             "suite": {
                 "id": self.suite.id,
@@ -44,7 +46,8 @@ class BenchmarkReporter:
             "scenario_comparison": self.scenario_comparison(rows),
             "findings": self.findings(rows),
             "charts": self.charts(rows),
-            "insights": BenchmarkInsights(self.suite).report(),
+            "insights": insights_report,
+            "decision_summary": BenchmarkDecisionSummary(insights_report).report(),
         }
 
     # ------------------------------------------------------------------
