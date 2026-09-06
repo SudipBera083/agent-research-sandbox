@@ -20,13 +20,23 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 load_dotenv(BASE_DIR / ".env")
 
-LLM_PROVIDER = os.getenv("LLM_PROVIDER", "deterministic")
+def _get_int_env(key: str, default: int) -> int:
+    val = os.getenv(key, "")
+    if not val or not val.strip():
+        return default
+    try:
+        return int(val.strip())
+    except ValueError:
+        return default
+
+
+LLM_PROVIDER = os.getenv("LLM_PROVIDER", "deterministic") or "deterministic"
 XAI_API_KEY = os.getenv("XAI_API_KEY", "")
-XAI_MODEL = os.getenv("XAI_MODEL", "grok-4.6")
-XAI_TIMEOUT_SECONDS = int(os.getenv("XAI_TIMEOUT_SECONDS", "30"))
+XAI_MODEL = os.getenv("XAI_MODEL", "grok-4.6") or "grok-4.6"
+XAI_TIMEOUT_SECONDS = _get_int_env("XAI_TIMEOUT_SECONDS", 30)
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
-GROQ_MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-120b")
-GROQ_TIMEOUT_SECONDS = int(os.getenv("GROQ_TIMEOUT_SECONDS", "30"))
+GROQ_MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-120b") or "openai/gpt-oss-120b"
+GROQ_TIMEOUT_SECONDS = _get_int_env("GROQ_TIMEOUT_SECONDS", 30)
 
 
 # Quick-start development settings - unsuitable for production
@@ -38,7 +48,11 @@ SECRET_KEY = 'django-insecure-qa78)e3-1ja^+4e@z-ej437r9+d+4eryw^@6$!bui13*s)u$h2
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = (
+    os.getenv("ALLOWED_HOSTS", "").split(",")
+    if os.getenv("ALLOWED_HOSTS")
+    else [".vercel.app", "localhost", "127.0.0.1", "*"]
+)
 
 
 # Application definition
