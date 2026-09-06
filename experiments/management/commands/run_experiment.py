@@ -20,6 +20,9 @@ class Command(BaseCommand):
             total_ticks=10,
             configuration={
                 "world_name": "Research World 001",
+                "memory_enabled": True,
+                "memory_top_k": 10,
+                "memory_decay": 0.95,
                 "resources": [
                     {
                         "name": "food",

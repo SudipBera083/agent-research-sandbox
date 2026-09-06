@@ -13,6 +13,18 @@ class Agent(models.Model):
         default="rule",
     )
 
+    provider = models.CharField(
+        max_length=50,
+        blank=True,
+        default="",
+    )
+
+    model = models.CharField(
+        max_length=100,
+        blank=True,
+        default="",
+    )
+
     system_prompt = models.TextField()
 
     goals = models.JSONField(default=list)
@@ -50,9 +62,30 @@ class AgentMemory(models.Model):
         default="observation",
     )
 
+    experiment = models.ForeignKey(
+        "experiments.Experiment",
+        on_delete=models.SET_NULL,
+        related_name="agent_memories",
+        null=True,
+        blank=True,
+    )
+
+    related_agent = models.ForeignKey(
+        "agents.Agent",
+        on_delete=models.SET_NULL,
+        related_name="related_memories",
+        null=True,
+        blank=True,
+    )
+
+    source = models.CharField(
+        max_length=50,
+        default="simulation",
+    )
+
     content = models.JSONField(default=dict)
 
-    importance = models.IntegerField(default=1)
+    importance = models.FloatField(default=1.0)
 
     tick = models.IntegerField()
 

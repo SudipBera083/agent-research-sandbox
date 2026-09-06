@@ -1,3 +1,5 @@
+import uuid
+
 from django.db import models
 
 
@@ -11,6 +13,12 @@ class Experiment(models.Model):
 	]
 
 	name = models.CharField(max_length=200)
+
+	experiment_id = models.UUIDField(
+		default=uuid.uuid4,
+		unique=True,
+		editable=False,
+	)
 
 	description = models.TextField(
 		blank=True,

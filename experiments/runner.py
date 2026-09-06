@@ -6,6 +6,7 @@ from agents.models import Agent
 from simulation.engine import SimulationEngine
 from simulation.models import Resource, World
 
+from .metrics import ExperimentMetrics
 from .models import Experiment, ExperimentResult
 
 
@@ -13,10 +14,53 @@ class ExperimentRunner:
 
     def __init__(self, experiment):
         self.experiment = experiment
+        self.config = self._normalize_configuration(
+            experiment.configuration
+        )
+
+    def _normalize_configuration(self, configuration):
+        world = configuration.get("world", {})
+        memory = configuration.get("memory", {})
+        simulation = configuration.get("simulation", {})
+
+        return {
+            "world_name": world.get(
+                "name",
+                configuration.get(
+                    "world_name",
+                    self.experiment.name,
+                ),
+            ),
+            "world_description": world.get(
+                "description",
+                configuration.get("world_description", ""),
+            ),
+            "resources": world.get(
+                "resources",
+                configuration.get("resources", []),
+            ),
+            "agents": configuration.get("agents", []),
+            "memory_enabled": memory.get(
+                "enabled",
+                configuration.get("memory_enabled", True),
+            ),
+            "memory_top_k": memory.get(
+                "top_k",
+                configuration.get("memory_top_k", 10),
+            ),
+            "memory_decay": memory.get(
+                "decay",
+                configuration.get("memory_decay", 0.95),
+            ),
+            "total_ticks": simulation.get(
+                "ticks",
+                self.experiment.total_ticks,
+            ),
+        }
 
     def setup(self):
 
-        config = self.experiment.configuration
+        config = self.config
 
         if self.experiment.seed is not None:
             random.seed(self.experiment.seed)
@@ -54,7 +98,15 @@ class ExperimentRunner:
                 ),
                 runtime_type=agent_config.get(
                     "runtime_type",
-                    "rule",
+                    agent_config.get("runtime", "rule"),
+                ),
+                provider=agent_config.get(
+                    "provider",
+                    "",
+                ),
+                model=agent_config.get(
+                    "model",
+                    "",
                 ),
                 world=world,
                 system_prompt=agent_config.get(
@@ -94,9 +146,14 @@ class ExperimentRunner:
             engine = SimulationEngine(
                 world,
                 experiment=self.experiment,
+                memory_policy={
+                    "memory_enabled": self.config["memory_enabled"],
+                    "memory_top_k": self.config["memory_top_k"],
+                    "memory_decay": self.config["memory_decay"],
+                },
             )
 
-            for tick in range(self.experiment.total_ticks):
+            for tick in range(self.config["total_ticks"]):
                 world.current_tick = tick + 1
                 world.save()
 
@@ -158,16 +215,11 @@ class ExperimentRunner:
             "resources": final_resources,
         }
 
-        total_wallet = sum(
-            agent["wallet"]
-            for agent in final_agents
-        )
-
-        metrics = {
-            "agent_count": len(final_agents),
-            "total_wallet": total_wallet,
-            "resource_count": len(final_resources),
-        }
+        metrics = ExperimentMetrics(
+            self.experiment,
+            world,
+            agents,
+        ).calculate()
 
         return ExperimentResult.objects.create(
             experiment=self.experiment,

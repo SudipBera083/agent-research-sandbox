@@ -1,5 +1,6 @@
 import random
 
+from django.conf import settings
 from simulation.actions import Action
 
 from simulation.decision import get_decision_engine
@@ -57,13 +58,30 @@ class RandomAgentRuntime(AgentRuntime):
 def get_agent_runtime(agent):
 
     if agent.runtime_type == "llm":
-        from .llm_runtime import (
-            DeterministicLLMProvider,
-            LLMAgentRuntime,
-        )
+        from .llm_runtime import LLMAgentRuntime
+        from .providers.deterministic import DeterministicLLMProvider
+
+        provider_name = (
+            agent.provider or settings.LLM_PROVIDER
+        ).lower()
+
+        if provider_name == "groq":
+            from .providers.groq_provider import GroqProvider
+
+            provider = GroqProvider(model=agent.model or None)
+        elif provider_name == "xai":
+            from .providers.openai_provider import XAIProvider
+
+            provider = XAIProvider(model=agent.model or None)
+        elif provider_name == "deterministic":
+            provider = DeterministicLLMProvider()
+        else:
+            raise ValueError(
+                f"Unknown LLM provider: {settings.LLM_PROVIDER}"
+            )
 
         return LLMAgentRuntime(
-            DeterministicLLMProvider()
+            provider
         )
 
     if agent.runtime_type == "random":

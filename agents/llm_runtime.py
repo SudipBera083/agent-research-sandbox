@@ -1,89 +1,11 @@
+import hashlib
 import json
+import time
 
 from simulation.actions import Action
 
+from .providers.base import LLMResponse
 from .runtime import AgentRuntime
-
-
-class LLMProvider:
-
-    provider_name = "base"
-    model_name = "base"
-
-    def generate(self, messages):
-        raise NotImplementedError
-
-
-class DeterministicLLMProvider(LLMProvider):
-
-    provider_name = "deterministic"
-    model_name = "deterministic-v1"
-
-    def generate(self, messages):
-        observation = json.loads(messages[-1]["content"])
-        self_state = observation["self"]
-
-        if observation["pending_trades"]:
-            return json.dumps({
-                "action": "accept_trade",
-                "parameters": {
-                    "trade_id": observation["pending_trades"][0]["trade_id"],
-                },
-            })
-
-        if observation["messages"]:
-            message = observation["messages"][0]
-
-            if message["sender"] != self_state["name"]:
-                sender = next(
-                    (
-                        other
-                        for other in observation["other_agents"]
-                        if other["name"] == message["sender"]
-                    ),
-                    None,
-                )
-
-                if sender:
-                    return json.dumps({
-                        "action": "communicate",
-                        "parameters": {
-                            "recipient_id": sender["id"],
-                            "content": (
-                                "I received your message. "
-                                "What do you propose?"
-                            ),
-                            "conversation_id": message["conversation_id"],
-                            "intent": "question",
-                        },
-                    })
-
-        food = next(
-            (
-                resource
-                for resource in observation["world"]["resources"]
-                if resource["name"] == "food"
-            ),
-            None,
-        )
-
-        if (
-            food
-            and food["price"] <= 10
-            and self_state["wallet"] >= food["price"]
-        ):
-            return json.dumps({
-                "action": "buy",
-                "parameters": {
-                    "resource": "food",
-                    "quantity": 1,
-                },
-            })
-
-        return json.dumps({
-            "action": "wait",
-            "parameters": {},
-        })
 
 
 class LLMAgentRuntime(AgentRuntime):
@@ -95,34 +17,49 @@ class LLMAgentRuntime(AgentRuntime):
         self._metadata = {}
 
     def decide(self, agent, observation):
-        observation_data = observation.to_dict()
+        observation_data = observation.to_llm_dict()
+        observation_json = json.dumps(
+            observation_data,
+            sort_keys=True,
+            separators=(",", ":"),
+        )
         messages = [
             {
                 "role": "user",
-                "content": json.dumps(observation_data),
+                "content": observation_json,
             }
         ]
+        started_at = time.perf_counter()
 
         try:
-            raw_output = self.provider.generate(messages)
-            parsed_action = self._parse_output(raw_output)
+            response = self.provider.generate(messages)
+            response = self._normalize_response(response)
+            parsed_action = self._parse_output(response.content)
             action = self._validate_action(
                 parsed_action,
                 observation_data,
             )
-            self._metadata = {
-                "provider": self.provider.provider_name,
-                "model": self.provider.model_name,
-                "parsed_action": parsed_action,
-            }
+            self._metadata = self._metadata_for(
+                observation_json=observation_json,
+                response=response,
+                parsed_action=parsed_action,
+                started_at=started_at,
+                validation_result="accepted",
+            )
             return action
-        except (TypeError, ValueError, KeyError, json.JSONDecodeError) as error:
-            self._metadata = {
-                "provider": self.provider.provider_name,
-                "model": self.provider.model_name,
-                "parsed_action": None,
-                "validation_error": str(error),
-            }
+        except Exception as error:
+            self._metadata = self._metadata_for(
+                observation_json=observation_json,
+                response=(
+                    response
+                    if "response" in locals()
+                    else LLMResponse(content="")
+                ),
+                parsed_action=None,
+                started_at=started_at,
+                validation_result="rejected",
+                error=str(error),
+            )
             return Action(
                 agent_id=observation_data["self"]["id"],
                 action_type="wait",
@@ -131,6 +68,72 @@ class LLMAgentRuntime(AgentRuntime):
 
     def trace_metadata(self):
         return self._metadata
+
+    def _normalize_response(self, response):
+        if isinstance(response, LLMResponse):
+            return response
+
+        if isinstance(response, str):
+            return LLMResponse(content=response)
+
+        raise TypeError("Provider response must contain structured content.")
+
+    def _metadata_for(
+        self,
+        observation_json,
+        response,
+        parsed_action,
+        started_at,
+        validation_result,
+        error=None,
+    ):
+        bounded_observation = json.loads(observation_json)
+        metadata = {
+            "provider": self.provider.provider_name,
+            "model": self.provider.model_name,
+            "prompt_version": self.provider.prompt_version,
+            "observation_hash": hashlib.sha256(
+                observation_json.encode("utf-8")
+            ).hexdigest(),
+            "raw_response": response.raw_response or response.content,
+            "parsed_action": parsed_action,
+            "validation_result": validation_result,
+            "latency_ms": round(
+                (time.perf_counter() - started_at) * 1000,
+                3,
+            ),
+            "token_usage": response.usage,
+            "context_stats": {
+                "messages": len(bounded_observation["messages"]),
+                "memories": len(bounded_observation["memories"]),
+                "trade_history": len(
+                    bounded_observation["trade_history"]
+                ),
+                "pending_trades": len(
+                    bounded_observation["pending_trades"]
+                ),
+                "other_agents": len(bounded_observation["other_agents"]),
+                "estimated_chars": len(observation_json),
+            },
+        }
+
+        if error is not None:
+            metadata["error"] = error
+
+        prompt_tokens = metadata["token_usage"].get(
+            "prompt_tokens",
+            0,
+        )
+        completion_tokens = metadata["token_usage"].get(
+            "completion_tokens",
+            0,
+        )
+        metadata["estimated_cost_usd"] = (
+            prompt_tokens * self.provider.input_cost_per_million
+            + completion_tokens * self.provider.output_cost_per_million
+        ) / 1_000_000
+
+        return metadata
 
     def _parse_output(self, raw_output):
         if isinstance(raw_output, str):

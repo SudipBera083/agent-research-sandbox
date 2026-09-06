@@ -11,10 +11,16 @@ class MemoryManager:
         memory_type,
         content,
         tick,
-        importance=1,
+        importance=1.0,
+        experiment=None,
+        source="simulation",
+        related_agent=None,
     ):
         return AgentMemory.objects.create(
             agent=self.agent,
+            experiment=experiment,
+            related_agent=related_agent,
+            source=source,
             memory_type=memory_type,
             content=content,
             importance=importance,

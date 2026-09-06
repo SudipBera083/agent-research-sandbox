@@ -5,8 +5,10 @@ from .models import Conversation, Message
 
 class CommunicationManager:
 
-    def __init__(self, world):
+    def __init__(self, world, experiment=None, memory_enabled=True):
         self.world = world
+        self.experiment = experiment
+        self.memory_enabled = memory_enabled
 
     def get_or_create_conversation(
         self,
@@ -65,29 +67,36 @@ class CommunicationManager:
             metadata=metadata,
         )
 
-        MemoryManager(recipient).remember(
-            "message_received",
-            {
-                "sender_id": sender.id,
-                "sender_name": sender.name,
-                "message": content,
-                "message_type": message_type,
-            },
-            tick=tick,
-            importance=3,
-        )
+        if self.memory_enabled:
+            MemoryManager(recipient).remember(
+                "message_received",
+                {
+                    "sender_id": sender.id,
+                    "sender_name": sender.name,
+                    "message": content,
+                    "message_type": message_type,
+                },
+                tick=tick,
+                importance=3,
+                experiment=self.experiment,
+                source="communication",
+                related_agent=sender,
+            )
 
-        MemoryManager(sender).remember(
-            "message_sent",
-            {
-                "recipient_id": recipient.id,
-                "recipient_name": recipient.name,
-                "message": content,
-                "message_type": message_type,
-            },
-            tick=tick,
-            importance=2,
-        )
+            MemoryManager(sender).remember(
+                "message_sent",
+                {
+                    "recipient_id": recipient.id,
+                    "recipient_name": recipient.name,
+                    "message": content,
+                    "message_type": message_type,
+                },
+                tick=tick,
+                importance=2,
+                experiment=self.experiment,
+                source="communication",
+                related_agent=recipient,
+            )
 
         return message
 

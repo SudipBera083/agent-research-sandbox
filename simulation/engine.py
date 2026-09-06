@@ -10,9 +10,14 @@ from agents.runtime import get_agent_runtime
 
 class SimulationEngine:
 
-    def __init__(self, world, experiment=None):
+    def __init__(self, world, experiment=None, memory_policy=None):
         self.world = world
         self.experiment = experiment
+        self.memory_policy = memory_policy or {}
+        self.memory_enabled = self.memory_policy.get(
+            "memory_enabled",
+            True,
+        )
 
     def log_event(
         self,
@@ -57,7 +62,9 @@ class SimulationEngine:
             )
 
             message = CommunicationManager(
-                self.world
+                self.world,
+                experiment=self.experiment,
+                memory_enabled=self.memory_enabled,
             ).send(
                 sender=agent,
                 recipient=recipient,
@@ -310,16 +317,20 @@ class SimulationEngine:
     def run_agent(self, agent):
 
         observation = ObservationBuilder(
-            self.world
+            self.world,
+            memory_policy=self.memory_policy,
         ).build(agent)
 
         memory = MemoryManager(agent)
 
-        memory.remember(
-            "observation",
-            observation.to_dict(),
-            tick=self.world.current_tick,
-        )
+        if self.memory_enabled:
+            memory.remember(
+                "observation",
+                observation.to_dict(),
+                tick=self.world.current_tick,
+                experiment=self.experiment,
+                source="observation_builder",
+            )
 
         runtime = get_agent_runtime(agent)
 
@@ -330,21 +341,31 @@ class SimulationEngine:
 
         result = self.execute(action)
 
-        memory.remember(
-        "action_result",
-        {
-            "action": action.action_type,
-            "parameters": action.parameters,
-            "result": result,
-        },
-        tick=self.world.current_tick,
-    )
+        if self.memory_enabled:
+            memory.remember(
+                "action_result",
+                {
+                    "action": action.action_type,
+                    "parameters": action.parameters,
+                    "result": result,
+                },
+                tick=self.world.current_tick,
+                experiment=self.experiment,
+                source="simulation_engine",
+            )
+
+            self.extract_event_memory(
+                agent,
+                action,
+                result,
+            )
 
         if self.experiment is not None:
             decision_data = {
                 "runtime": runtime.runtime_type,
                 "backend": runtime.__class__.__name__,
                 "action_type": action.action_type,
+                "memory_ids": observation.memory_ids,
             }
             decision_data.update(runtime.trace_metadata())
 
@@ -367,3 +388,58 @@ class SimulationEngine:
         "parameters": action.parameters,
         "result": result,
     }
+
+    def extract_event_memory(self, agent, action, result):
+
+        if action.action_type == ActionTypes.WAIT:
+            return
+
+        memory_type = "observation"
+        importance = 0.5
+        source = "simulation_engine"
+        related_agent = None
+
+        if action.action_type == ActionTypes.COMMUNICATE:
+            memory_type = "interaction"
+            importance = 0.7
+            source = "communication"
+            related_agent = self.world.agents.get(
+                id=action.parameters["recipient_id"]
+            )
+
+        elif action.action_type in (
+            ActionTypes.PROPOSE_TRADE,
+            ActionTypes.ACCEPT_TRADE,
+            ActionTypes.REJECT_TRADE,
+        ):
+            memory_type = "trade"
+            importance = 0.9
+            source = "trade_engine"
+
+            if action.action_type == ActionTypes.PROPOSE_TRADE:
+                related_agent = self.world.agents.get(
+                    id=action.parameters["recipient_id"]
+                )
+            else:
+                trade = Trade.objects.get(
+                    id=action.parameters["trade_id"]
+                )
+                related_agent = (
+                    trade.proposer
+                    if trade.proposer_id != agent.id
+                    else trade.recipient
+                )
+
+        MemoryManager(agent).remember(
+            memory_type,
+            {
+                "action": action.action_type,
+                "parameters": action.parameters,
+                "result": result,
+            },
+            tick=self.world.current_tick,
+            importance=importance,
+            experiment=self.experiment,
+            source=source,
+            related_agent=related_agent,
+        )
