@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 
-from .actions import Action, ActionTypes
 from agents.memory import MemoryManager
+from .actions import Action, ActionTypes
 
 class DecisionEngine(ABC):
 
@@ -69,3 +69,157 @@ class RuleBasedDecisionEngine(DecisionEngine):
             action_type=ActionTypes.WAIT,
             parameters={},
         )
+
+class WealthDecisionEngine(DecisionEngine):
+
+    def decide(self, agent, observation) -> Action:
+
+        resources = observation["resources"]
+
+        food = next(
+            (
+                resource
+                for resource in resources
+                if resource["name"] == "food"
+            ),
+            None,
+        )
+
+        if food is None:
+            return Action(
+                agent_id=agent.id,
+                action_type=ActionTypes.WAIT,
+                parameters={},
+            )
+
+        # Wealth agent only buys if price is attractive.
+        if food["price"] <= 10 and agent.wallet >= food["price"]:
+
+            return Action(
+                agent_id=agent.id,
+                action_type=ActionTypes.BUY,
+                parameters={
+                    "resource": "food",
+                    "quantity": 1,
+                },
+            )
+
+        return Action(
+            agent_id=agent.id,
+            action_type=ActionTypes.WAIT,
+            parameters={},
+        )
+
+class SurvivalDecisionEngine(DecisionEngine):
+
+    def decide(self, agent, observation) -> Action:
+
+        food = agent.inventory.get(
+            "food",
+            0,
+        )
+
+        if food < 8:
+
+            resources = observation["resources"]
+
+            food_resource = next(
+                (
+                    resource
+                    for resource in resources
+                    if resource["name"] == "food"
+                ),
+                None,
+            )
+
+            if food_resource:
+
+                affordable = int(
+                    agent.wallet
+                    // food_resource["price"]
+                )
+
+                quantity = min(
+                    3,
+                    affordable,
+                    food_resource["quantity"],
+                )
+
+                if quantity > 0:
+
+                    return Action(
+                        agent_id=agent.id,
+                        action_type=ActionTypes.BUY,
+                        parameters={
+                            "resource": "food",
+                            "quantity": quantity,
+                        },
+                    )
+
+        return Action(
+            agent_id=agent.id,
+            action_type=ActionTypes.WAIT,
+            parameters={},
+        )
+
+class CooperativeDecisionEngine(DecisionEngine):
+
+    def decide(self, agent, observation) -> Action:
+
+        food = agent.inventory.get(
+            "food",
+            0,
+        )
+
+        if food < 5:
+
+            resources = observation["resources"]
+
+            food_resource = next(
+                (
+                    resource
+                    for resource in resources
+                    if resource["name"] == "food"
+                ),
+                None,
+            )
+
+            if food_resource:
+
+                affordable = int(
+                    agent.wallet
+                    // food_resource["price"]
+                )
+
+                if affordable > 0:
+
+                    return Action(
+                        agent_id=agent.id,
+                        action_type=ActionTypes.BUY,
+                        parameters={
+                            "resource": "food",
+                            "quantity": 1,
+                        },
+                    )
+
+        return Action(
+            agent_id=agent.id,
+            action_type=ActionTypes.WAIT,
+            parameters={},
+        )
+
+
+def get_decision_engine(agent):
+
+    if agent.role == "wealth":
+        return WealthDecisionEngine()
+
+    if agent.role == "survival":
+        return SurvivalDecisionEngine()
+
+    if agent.role == "cooperative":
+        return CooperativeDecisionEngine()
+
+    return RuleBasedDecisionEngine()
+
+

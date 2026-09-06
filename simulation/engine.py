@@ -1,13 +1,12 @@
+from agents.memory import MemoryManager
 from events.models import Event
 from .actions import Action, ActionTypes
-from .decision import DecisionEngine
-from agents.memory import MemoryManager
+from .decision import get_decision_engine
 
 class SimulationEngine:
 
-    def __init__(self,world,decision_engine: DecisionEngine | None = None,):
+    def __init__(self, world):
         self.world = world
-        self.decision_engine = decision_engine
 
     def log_event(
         self,
@@ -217,10 +216,12 @@ class SimulationEngine:
 
         observation = self.observe(agent)
 
-        action = self.decision_engine.decide(
-        agent,
-        observation,
-    )
+        decision_engine = get_decision_engine(agent)
+
+        action = decision_engine.decide(
+            agent,
+            observation,
+        )
 
         result = self.execute(action)
 

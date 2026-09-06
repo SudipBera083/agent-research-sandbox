@@ -3,6 +3,11 @@ from django.db import models
 class Agent(models.Model):
     name = models.CharField(max_length=100)
 
+    role = models.CharField(
+        max_length=50,
+        default="general",
+    )
+
     system_prompt = models.TextField()
 
     goals = models.JSONField(default=list)

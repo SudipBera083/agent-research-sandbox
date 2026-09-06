@@ -1,9 +1,8 @@
 from django.core.management.base import BaseCommand
 
-from simulation.models import World, Resource
-from simulation.engine import SimulationEngine
-from simulation.decision import RuleBasedDecisionEngine
 from agents.models import Agent
+from simulation.engine import SimulationEngine
+from simulation.models import Resource, World
 
 
 class Command(BaseCommand):
@@ -24,30 +23,40 @@ class Command(BaseCommand):
             quantity=100,
         )
 
-        agents = []
-
-        for i in range(3):
-
-            agent = Agent.objects.create(
-                name=f"Agent {i + 1}",
-                world=world,
-                system_prompt=(
-                    "Maintain sufficient food "
-                    "while preserving money."
-                ),
-                goals=[
-                    "Maintain at least 5 food"
-                ],
-            )
-
-            agents.append(agent)
-
-        decision_engine = RuleBasedDecisionEngine()
-
-        engine = SimulationEngine(
-            world,
-            decision_engine,
+        agent_1 = Agent.objects.create(
+            name="Agent 1",
+            role="wealth",
+            world=world,
+            system_prompt="Maximize wealth.",
+            goals=[
+                "Maximize wealth",
+            ],
         )
+
+        agent_2 = Agent.objects.create(
+            name="Agent 2",
+            role="survival",
+            world=world,
+            system_prompt="Prioritize survival.",
+            goals=[
+                "Maintain food reserves",
+            ],
+        )
+
+        agent_3 = Agent.objects.create(
+            name="Agent 3",
+            role="cooperative",
+            world=world,
+            system_prompt="Prefer cooperation.",
+            goals=[
+                "Maintain resources",
+                "Cooperate with others",
+            ],
+        )
+
+        agents = [agent_1, agent_2, agent_3]
+
+        engine = SimulationEngine(world)
 
         for tick in range(10):
 
