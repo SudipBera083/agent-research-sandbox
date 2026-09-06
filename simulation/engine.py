@@ -59,6 +59,10 @@ class SimulationEngine:
                 recipient=recipient,
                 content=action.parameters["content"],
                 tick=self.world.current_tick,
+                conversation_id=action.parameters.get(
+                    "conversation_id",
+                    "",
+                ),
             )
 
             return {

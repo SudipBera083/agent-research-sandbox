@@ -156,11 +156,11 @@ class CooperativeDecisionEngine(DecisionEngine):
 
     def decide(self, agent, observation) -> Action:
 
-        other_agents = observation.other_agents
+        messages = observation.messages
 
-        if other_agents:
+        if not messages:
 
-            target = other_agents[0]
+            target = observation.other_agents[0]
 
             return Action(
                 agent_id=observation.self_state["id"],
@@ -171,8 +171,41 @@ class CooperativeDecisionEngine(DecisionEngine):
                         "Hello. I am willing to cooperate "
                         "if we can help each other."
                     ),
+                    "conversation_id": (
+                        f"{observation.self_state['id']}-{target['id']}"
+                    ),
                 },
             )
+
+        last_message = messages[0]
+
+        if last_message["sender"] != agent.name:
+
+            sender = next(
+                (
+                    other
+                    for other in observation.other_agents
+                    if other["name"] == last_message["sender"]
+                ),
+                None,
+            )
+
+            if sender:
+
+                return Action(
+                    agent_id=observation.self_state["id"],
+                    action_type=ActionTypes.COMMUNICATE,
+                    parameters={
+                        "recipient_id": sender["id"],
+                        "content": (
+                            "I received your message. "
+                            "What do you propose?"
+                        ),
+                        "conversation_id": (
+                            last_message["conversation_id"]
+                        ),
+                    },
+                )
 
         return Action(
             agent_id=observation.self_state["id"],

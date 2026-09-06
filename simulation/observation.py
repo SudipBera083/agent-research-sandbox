@@ -2,6 +2,9 @@ from dataclasses import dataclass
 from typing import Any
 
 from agents.memory import MemoryManager
+from django.db.models import Q
+
+from simulation.models import Message
 
 
 @dataclass
@@ -11,6 +14,7 @@ class AgentObservation:
 	world_state: dict[str, Any]
 	other_agents: list[dict[str, Any]]
 	memories: list[dict[str, Any]]
+	messages: list[dict[str, Any]]
 	available_actions: list[str]
 
 	def to_dict(self):
@@ -20,6 +24,7 @@ class AgentObservation:
 			"world": self.world_state,
 			"other_agents": self.other_agents,
 			"memories": self.memories,
+			"messages": self.messages,
 			"available_actions": self.available_actions,
 		}
 
@@ -63,6 +68,22 @@ class ObservationBuilder:
 			for resource in self.world.resources.all()
 		]
 
+		recent_messages = Message.objects.filter(
+			Q(sender=agent) | Q(recipient=agent)
+		).order_by(
+			"-created_at"
+		)[:10]
+
+		message_data = [
+			{
+				"sender": message.sender.name,
+				"content": message.content,
+				"tick": message.tick,
+				"conversation_id": message.conversation_id,
+			}
+			for message in recent_messages
+		]
+
 		return AgentObservation(
 			tick=self.world.current_tick,
 			self_state={
@@ -81,6 +102,7 @@ class ObservationBuilder:
 			},
 			other_agents=other_agents,
 			memories=memory_data,
+			messages=message_data,
 			available_actions=[
 				"buy",
 				"sell",

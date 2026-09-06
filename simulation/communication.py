@@ -15,6 +15,7 @@ class CommunicationManager:
         content,
         tick,
         message_type="direct",
+        conversation_id="",
         metadata=None,
     ):
         if metadata is None:
@@ -30,6 +31,7 @@ class CommunicationManager:
             recipient=recipient,
             content=content,
             message_type=message_type,
+            conversation_id=conversation_id,
             tick=tick,
             metadata=metadata,
         )
@@ -59,6 +61,16 @@ class CommunicationManager:
         )
 
         return message
+
+    def conversation(self, conversation_id):
+        return list(
+            Message.objects.filter(
+                conversation_id=conversation_id
+            ).order_by(
+                "tick",
+                "created_at",
+            )
+        )
 
     def received(self, agent, limit=20):
         return list(

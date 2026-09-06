@@ -62,6 +62,12 @@ class Message(models.Model):
         default="direct",
     )
 
+    conversation_id = models.CharField(
+        max_length=100,
+        blank=True,
+        default="",
+    )
+
     content = models.TextField()
 
     tick = models.IntegerField()
