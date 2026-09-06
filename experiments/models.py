@@ -84,3 +84,32 @@ class ExperimentResult(models.Model):
 
 	def __str__(self):
 		return f"Result: {self.experiment.name}"
+
+
+class DecisionTrace(models.Model):
+
+	experiment = models.ForeignKey(
+		Experiment,
+		on_delete=models.CASCADE,
+		related_name="decision_traces",
+	)
+
+	tick = models.IntegerField()
+
+	agent = models.ForeignKey(
+		"agents.Agent",
+		on_delete=models.CASCADE,
+		related_name="decision_traces",
+	)
+
+	observation = models.JSONField(default=dict)
+
+	decision = models.JSONField(default=dict)
+
+	action = models.JSONField(default=dict)
+
+	result = models.JSONField(default=dict)
+
+	created_at = models.DateTimeField(
+		auto_now_add=True,
+	)

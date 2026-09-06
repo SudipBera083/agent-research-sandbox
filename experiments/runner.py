@@ -87,7 +87,10 @@ class ExperimentRunner:
 
         try:
             world, agents = self.setup()
-            engine = SimulationEngine(world)
+            engine = SimulationEngine(
+                world,
+                experiment=self.experiment,
+            )
 
             for tick in range(self.experiment.total_ticks):
                 world.current_tick = tick + 1

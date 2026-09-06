@@ -14,4 +14,7 @@ class ActionTypes:
     BUY = "buy"
     SELL = "sell"
     COMMUNICATE = "communicate"
+    PROPOSE_TRADE = "propose_trade"
+    ACCEPT_TRADE = "accept_trade"
+    REJECT_TRADE = "reject_trade"
     WAIT = "wait"

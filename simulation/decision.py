@@ -61,6 +61,18 @@ class WealthDecisionEngine(DecisionEngine):
 
     def decide(self, agent, observation) -> Action:
 
+        if observation.pending_trades:
+
+            trade = observation.pending_trades[0]
+
+            return Action(
+                agent_id=observation.self_state["id"],
+                action_type=ActionTypes.ACCEPT_TRADE,
+                parameters={
+                    "trade_id": trade["trade_id"],
+                },
+            )
+
         if observation.messages:
 
             last_message = observation.messages[0]
@@ -231,6 +243,19 @@ class CooperativeDecisionEngine(DecisionEngine):
 
         last_message = messages[0]
 
+        conversation_id = last_message["conversation_id"]
+
+        if any(
+            trade["conversation_id"] == conversation_id
+            and trade["proposer_id"] == observation.self_state["id"]
+            for trade in observation.trade_history
+        ):
+            return Action(
+                agent_id=observation.self_state["id"],
+                action_type=ActionTypes.WAIT,
+                parameters={},
+            )
+
         if last_message["sender"] != agent.name:
 
             sender = next(
@@ -242,20 +267,24 @@ class CooperativeDecisionEngine(DecisionEngine):
                 None,
             )
 
-            if sender:
+            if sender and last_message.get("intent") == "question":
 
                 return Action(
                     agent_id=observation.self_state["id"],
-                    action_type=ActionTypes.COMMUNICATE,
+                    action_type=ActionTypes.PROPOSE_TRADE,
                     parameters={
                         "recipient_id": sender["id"],
-                        "content": (
-                            "I received your message. "
-                            "What do you propose?"
-                        ),
-                        "conversation_id": (
-                            last_message["conversation_id"]
-                        ),
+                        "conversation_id": conversation_id,
+                        "offer": {
+                            "give": {
+                                "resource": "food",
+                                "quantity": 2,
+                            },
+                            "receive": {
+                                "resource": "money",
+                                "quantity": 20,
+                            },
+                        },
                     },
                 )
 

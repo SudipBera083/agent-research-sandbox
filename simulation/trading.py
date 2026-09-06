@@ -6,6 +6,40 @@ from .models import Trade
 class TradeEngine:
 
     @staticmethod
+    def propose(
+        conversation,
+        proposer,
+        recipient,
+        offer,
+    ):
+        return Trade.objects.create(
+            conversation=conversation,
+            proposer=proposer,
+            recipient=recipient,
+            offer=offer,
+            status="proposed",
+        )
+
+    @staticmethod
+    def accept(trade, agent):
+        if trade.recipient_id != agent.id:
+            return {
+                "success": False,
+                "error": "Only the recipient can accept this trade.",
+            }
+
+        if trade.status != "proposed":
+            return {
+                "success": False,
+                "error": "Trade is no longer available.",
+            }
+
+        trade.status = "accepted"
+        trade.save(update_fields=["status", "updated_at"])
+
+        return TradeEngine.execute(trade)
+
+    @staticmethod
     @transaction.atomic
     def execute(trade):
 

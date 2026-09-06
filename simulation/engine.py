@@ -1,14 +1,18 @@
 from agents.memory import MemoryManager
 from events.models import Event
+from experiments.models import DecisionTrace
 from .actions import Action, ActionTypes
 from .communication import CommunicationManager
 from .decision import get_decision_engine
+from .models import Conversation, Trade
 from .observation import ObservationBuilder
+from .trading import TradeEngine
 
 class SimulationEngine:
 
-    def __init__(self, world):
+    def __init__(self, world, experiment=None):
         self.world = world
+        self.experiment = experiment
 
     def log_event(
         self,
@@ -74,6 +78,66 @@ class SimulationEngine:
                 "action": "communicate",
                 "message_id": message.id,
                 "recipient": recipient.name,
+            }
+
+        if action.action_type == ActionTypes.PROPOSE_TRADE:
+            recipient = self.world.agents.get(
+                id=action.parameters["recipient_id"]
+            )
+            conversation = Conversation.objects.get(
+                conversation_id=action.parameters["conversation_id"]
+            )
+
+            trade = TradeEngine.propose(
+                conversation=conversation,
+                proposer=agent,
+                recipient=recipient,
+                offer=action.parameters["offer"],
+            )
+
+            return {
+                "success": True,
+                "action": "propose_trade",
+                "trade_id": trade.id,
+                "status": trade.status,
+                "recipient": recipient.name,
+            }
+
+        if action.action_type == ActionTypes.ACCEPT_TRADE:
+            trade = Trade.objects.get(
+                id=action.parameters["trade_id"]
+            )
+
+            return TradeEngine.accept(
+                trade=trade,
+                agent=agent,
+            )
+
+        if action.action_type == ActionTypes.REJECT_TRADE:
+            trade = Trade.objects.get(
+                id=action.parameters["trade_id"]
+            )
+
+            if trade.recipient_id != agent.id:
+                return {
+                    "success": False,
+                    "error": "Only the recipient can reject this trade.",
+                }
+
+            if trade.status != "proposed":
+                return {
+                    "success": False,
+                    "error": "Trade is no longer available.",
+                }
+
+            trade.status = "rejected"
+            trade.save(update_fields=["status", "updated_at"])
+
+            return {
+                "success": True,
+                "action": "reject_trade",
+                "trade_id": trade.id,
+                "status": trade.status,
             }
 
         if action.action_type == ActionTypes.WAIT:
@@ -275,6 +339,23 @@ class SimulationEngine:
         },
         tick=self.world.current_tick,
     )
+
+        if self.experiment is not None:
+            DecisionTrace.objects.create(
+                experiment=self.experiment,
+                tick=self.world.current_tick,
+                agent=agent,
+                observation=observation.to_dict(),
+                decision={
+                    "engine": decision_engine.__class__.__name__,
+                    "action_type": action.action_type,
+                },
+                action={
+                    "type": action.action_type,
+                    "parameters": action.parameters,
+                },
+                result=result,
+            )
 
         return {
         "agent": agent.name,

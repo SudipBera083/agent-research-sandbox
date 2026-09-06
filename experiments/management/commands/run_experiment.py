@@ -48,6 +48,9 @@ class Command(BaseCommand):
                         "name": "Agent 3",
                         "role": "cooperative",
                         "wallet": 100,
+                        "inventory": {
+                            "food": 2,
+                        },
                         "goals": [
                             "Cooperate with other agents"
                         ],
