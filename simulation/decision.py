@@ -156,41 +156,23 @@ class CooperativeDecisionEngine(DecisionEngine):
 
     def decide(self, agent, observation) -> Action:
 
-        food = observation.self_state["inventory"].get(
-            "food",
-            0,
-        )
+        other_agents = observation.other_agents
 
-        if food < 5:
+        if other_agents:
 
-            resources = observation.world_state["resources"]
+            target = other_agents[0]
 
-            food_resource = next(
-                (
-                    resource
-                    for resource in resources
-                    if resource["name"] == "food"
-                ),
-                None,
+            return Action(
+                agent_id=observation.self_state["id"],
+                action_type=ActionTypes.COMMUNICATE,
+                parameters={
+                    "recipient_id": target["id"],
+                    "content": (
+                        "Hello. I am willing to cooperate "
+                        "if we can help each other."
+                    ),
+                },
             )
-
-            if food_resource:
-
-                affordable = int(
-                    observation.self_state["wallet"]
-                    // food_resource["price"]
-                )
-
-                if affordable > 0:
-
-                    return Action(
-                        agent_id=observation.self_state["id"],
-                        action_type=ActionTypes.BUY,
-                        parameters={
-                            "resource": "food",
-                            "quantity": 1,
-                        },
-                    )
 
         return Action(
             agent_id=observation.self_state["id"],

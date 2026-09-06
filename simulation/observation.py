@@ -84,6 +84,7 @@ class ObservationBuilder:
 			available_actions=[
 				"buy",
 				"sell",
+				"communicate",
 				"wait",
 			],
 		)

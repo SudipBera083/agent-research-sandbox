@@ -1,6 +1,7 @@
 from agents.memory import MemoryManager
 from events.models import Event
 from .actions import Action, ActionTypes
+from .communication import CommunicationManager
 from .decision import get_decision_engine
 from .observation import ObservationBuilder
 
@@ -45,6 +46,27 @@ class SimulationEngine:
                 agent,
                 action.parameters
             )
+
+        if action.action_type == ActionTypes.COMMUNICATE:
+            recipient = self.world.agents.get(
+                id=action.parameters["recipient_id"]
+            )
+
+            message = CommunicationManager(
+                self.world
+            ).send(
+                sender=agent,
+                recipient=recipient,
+                content=action.parameters["content"],
+                tick=self.world.current_tick,
+            )
+
+            return {
+                "success": True,
+                "action": "communicate",
+                "message_id": message.id,
+                "recipient": recipient.name,
+            }
 
         if action.action_type == ActionTypes.WAIT:
             return self.wait(agent)

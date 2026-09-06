@@ -1,3 +1,5 @@
+from typing import ClassVar
+
 from django.db import models
 
 
@@ -31,3 +33,54 @@ class Resource(models.Model):
 
     def __str__(self):
         return self.name
+
+
+class Message(models.Model):
+    MESSAGE_TYPES: ClassVar = [
+        ("direct", "Direct"),
+        ("broadcast", "Broadcast"),
+        ("system", "System"),
+    ]
+
+    sender = models.ForeignKey(
+        "agents.Agent",
+        on_delete=models.CASCADE,
+        related_name="sent_messages",
+    )
+
+    recipient = models.ForeignKey(
+        "agents.Agent",
+        on_delete=models.CASCADE,
+        related_name="received_messages",
+        null=True,
+        blank=True,
+    )
+
+    message_type = models.CharField(
+        max_length=20,
+        choices=MESSAGE_TYPES,
+        default="direct",
+    )
+
+    content = models.TextField()
+
+    tick = models.IntegerField()
+
+    metadata = models.JSONField(default=dict)
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+
+    def __str__(self):
+        if self.recipient:
+            return (
+                f"{self.sender.name} -> "
+                f"{self.recipient.name}: "
+                f"{self.content[:40]}"
+            )
+
+        return (
+            f"{self.sender.name} -> broadcast: "
+            f"{self.content[:40]}"
+        )
