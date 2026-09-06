@@ -1,12 +1,33 @@
 from agents.memory import MemoryManager
 
-from .models import Message
+from .models import Conversation, Message
 
 
 class CommunicationManager:
 
     def __init__(self, world):
         self.world = world
+
+    def get_or_create_conversation(
+        self,
+        sender,
+        recipient,
+        conversation_id,
+        topic="general",
+    ):
+        conversation, created = Conversation.objects.get_or_create(
+            conversation_id=conversation_id,
+            defaults={
+                "topic": topic,
+            },
+        )
+
+        conversation.participants.add(
+            sender,
+            recipient,
+        )
+
+        return conversation
 
     def send(
         self,
@@ -16,6 +37,7 @@ class CommunicationManager:
         tick,
         message_type="direct",
         conversation_id="",
+        intent="information",
         metadata=None,
     ):
         if metadata is None:
@@ -26,12 +48,19 @@ class CommunicationManager:
                 "An agent cannot send a message to itself."
             )
 
+        self.get_or_create_conversation(
+            sender=sender,
+            recipient=recipient,
+            conversation_id=conversation_id,
+        )
+
         message = Message.objects.create(
             sender=sender,
             recipient=recipient,
             content=content,
             message_type=message_type,
             conversation_id=conversation_id,
+            intent=intent,
             tick=tick,
             metadata=metadata,
         )

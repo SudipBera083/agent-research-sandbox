@@ -61,6 +61,58 @@ class WealthDecisionEngine(DecisionEngine):
 
     def decide(self, agent, observation) -> Action:
 
+        if observation.messages:
+
+            last_message = observation.messages[0]
+            conversation_id = last_message["conversation_id"]
+
+            conversation_messages = [
+                message
+                for message in observation.messages
+                if message["conversation_id"] == conversation_id
+            ]
+
+            already_replied = any(
+                message["sender"] == agent.name
+                for message in conversation_messages
+            )
+
+            if already_replied:
+                return Action(
+                    agent_id=observation.self_state["id"],
+                    action_type=ActionTypes.WAIT,
+                    parameters={},
+                )
+
+            if last_message["sender"] != agent.name:
+
+                sender = next(
+                    (
+                        other
+                        for other in observation.other_agents
+                        if other["name"] == last_message["sender"]
+                    ),
+                    None,
+                )
+
+                if sender:
+
+                    return Action(
+                        agent_id=observation.self_state["id"],
+                        action_type=ActionTypes.COMMUNICATE,
+                        parameters={
+                            "recipient_id": sender["id"],
+                            "content": (
+                                "I received your message. "
+                                "What do you propose?"
+                            ),
+                            "conversation_id": (
+                                conversation_id
+                            ),
+                            "intent": "question",
+                        },
+                    )
+
         resources = observation.world_state["resources"]
 
         food = next(
@@ -79,7 +131,6 @@ class WealthDecisionEngine(DecisionEngine):
                 parameters={},
             )
 
-        # Wealth agent only buys if price is attractive.
         if (
             food["price"] <= 10
             and observation.self_state["wallet"] >= food["price"]
@@ -174,6 +225,7 @@ class CooperativeDecisionEngine(DecisionEngine):
                     "conversation_id": (
                         f"{observation.self_state['id']}-{target['id']}"
                     ),
+                    "intent": "greeting",
                 },
             )
 

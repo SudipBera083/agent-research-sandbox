@@ -80,6 +80,7 @@ class ObservationBuilder:
 				"content": message.content,
 				"tick": message.tick,
 				"conversation_id": message.conversation_id,
+				"intent": message.intent,
 			}
 			for message in recent_messages
 		]

@@ -35,6 +35,47 @@ class Resource(models.Model):
         return self.name
 
 
+class Conversation(models.Model):
+    STATUS_CHOICES: ClassVar = [
+        ("active", "Active"),
+        ("accepted", "Accepted"),
+        ("rejected", "Rejected"),
+        ("completed", "Completed"),
+    ]
+
+    conversation_id = models.CharField(
+        max_length=100,
+        unique=True,
+    )
+
+    participants = models.ManyToManyField(
+        "agents.Agent",
+        related_name="conversations",
+    )
+
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default="active",
+    )
+
+    topic = models.CharField(
+        max_length=100,
+        default="general",
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+
+    updated_at = models.DateTimeField(
+        auto_now=True,
+    )
+
+    def __str__(self):
+        return self.conversation_id
+
+
 class Message(models.Model):
     MESSAGE_TYPES: ClassVar = [
         ("direct", "Direct"),
@@ -66,6 +107,11 @@ class Message(models.Model):
         max_length=100,
         blank=True,
         default="",
+    )
+
+    intent = models.CharField(
+        max_length=30,
+        default="information",
     )
 
     content = models.TextField()

@@ -63,6 +63,10 @@ class SimulationEngine:
                     "conversation_id",
                     "",
                 ),
+                intent=action.parameters.get(
+                    "intent",
+                    "information",
+                ),
             )
 
             return {
