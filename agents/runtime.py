@@ -37,22 +37,52 @@ class RandomAgentRuntime(AgentRuntime):
 
     def decide(self, agent, observation):
 
-        actions = observation.available_actions
-
-        if not actions:
-            return Action(
-                agent_id=agent.id,
+        agent_id = observation.self_state["id"]
+        actions = [
+            Action(
+                agent_id=agent_id,
                 action_type="wait",
                 parameters={},
             )
+        ]
 
-        action_type = random.choice(actions)
-
-        return Action(
-            agent_id=agent.id,
-            action_type=action_type,
-            parameters={},
+        food = next(
+            (
+                resource
+                for resource in observation.world_state["resources"]
+                if resource["name"] == "food"
+            ),
+            None,
         )
+
+        if (
+            food
+            and food["quantity"] > 0
+            and observation.self_state["wallet"] >= food["price"]
+        ):
+            actions.append(
+                Action(
+                    agent_id=agent_id,
+                    action_type="buy",
+                    parameters={
+                        "resource": "food",
+                        "quantity": 1,
+                    },
+                )
+            )
+
+        for trade in observation.pending_trades:
+            actions.append(
+                Action(
+                    agent_id=agent_id,
+                    action_type="accept_trade",
+                    parameters={
+                        "trade_id": trade["trade_id"],
+                    },
+                )
+            )
+
+        return random.choice(actions)
 
 
 def get_agent_runtime(agent):

@@ -81,6 +81,10 @@ class ExperimentMetrics:
                 agent.name: agent.inventory
                 for agent in final_agents
             },
+            "resource_units": {
+                agent.name: sum(agent.inventory.values())
+                for agent in final_agents
+            },
             "trade_volume": len(completed_trades),
             "trade_value": sum(
                 self._money_quantity(trade.offer.get("receive", {}))

@@ -51,8 +51,13 @@ DEBUG = True
 ALLOWED_HOSTS = (
     os.getenv("ALLOWED_HOSTS", "").split(",")
     if os.getenv("ALLOWED_HOSTS")
-    else [".vercel.app", "localhost", "127.0.0.1", "*"]
+    else [".vercel.app", "localhost", "127.0.0.1"]
 )
+
+# CORS: Allowed origins for Vercel frontend
+CORS_ALLOWED_ORIGINS = os.getenv(
+    "CORS_ALLOWED_ORIGINS", ""
+).split(",") if os.getenv("CORS_ALLOWED_ORIGINS") else []
 
 
 # Application definition
@@ -80,6 +85,10 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    # Step 33: JSON error responses and CORS for production
+    'experiments.middleware.SimpleCORSMiddleware',
+    'experiments.middleware.JSONNotFoundMiddleware',
+    'experiments.middleware.JSONServerErrorMiddleware',
 ]
 
 ROOT_URLCONF = 'config.urls'
@@ -153,3 +162,47 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# ---------------------------------------------------------------------------
+# Step 33: Logging Configuration
+# Structured observability for simulation orchestration
+# ---------------------------------------------------------------------------
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "verbose": {
+            "format": "{levelname} {asctime} {name} {message}",
+            "style": "{",
+        },
+        "json": {
+            "format": '{"level": "%(levelname)s", "time": "%(asctime)s", '
+                      '"logger": "%(name)s", "message": "%(message)s"}',
+            "style": "%",
+        },
+    },
+    "handlers": {
+        "console": {
+            "level": "INFO",
+            "class": "logging.StreamHandler",
+            "formatter": "verbose",
+        },
+    },
+    "loggers": {
+        "experiments": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "django": {
+            "handlers": ["console"],
+            "level": "WARNING",
+            "propagate": False,
+        },
+    },
+    "root": {
+        "handlers": ["console"],
+        "level": "INFO",
+    },
+}
