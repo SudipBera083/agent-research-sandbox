@@ -249,7 +249,7 @@ class CORSMiddlewareTest(TestCase):
     def test_cors_headers_added_for_allowed_origin(self):
         from django.test import override_settings
 
-        with override_settings(CORS_ALLOWED_ORIGINS=["https://app.example.com"]):
+        with override_settings(CORS_ALLOWED_ORIGINS=["https://app.example.com"], CORS_ALLOW_ALL_ORIGINS=False):
             client = Client()
             resp = client.get(
                 reverse("simulation_snapshot", args=[1]),
@@ -257,23 +257,36 @@ class CORSMiddlewareTest(TestCase):
                 HTTP_X_REQUESTED_WITH="XMLHttpRequest",
             )
             # 404 is fine - we're checking CORS headers
-            if resp.has_header("Access-Control-Allow-Origin"):
-                self.assertEqual(
-                    resp["Access-Control-Allow-Origin"],
-                    "https://app.example.com",
-                )
+            self.assertTrue(resp.has_header("Access-Control-Allow-Origin"))
+            self.assertEqual(
+                resp["Access-Control-Allow-Origin"],
+                "https://app.example.com",
+            )
+
+    def test_cors_headers_for_localhost_frontend(self):
+        client = Client()
+        resp = client.get(
+            reverse("simulation_snapshot", args=[1]),
+            HTTP_ORIGIN="http://localhost:5173",
+        )
+        self.assertTrue(resp.has_header("Access-Control-Allow-Origin"))
+        self.assertEqual(
+            resp["Access-Control-Allow-Origin"],
+            "http://localhost:5173",
+        )
 
     def test_cors_preflight_handled(self):
-        from django.conf import settings
-        from experiments.middleware import SimpleCORSMiddleware
-
         client = Client()
         resp = client.options(
             reverse("simulation_snapshot", args=[1]),
-            HTTP_ORIGIN="https://app.example.com",
+            HTTP_ORIGIN="http://localhost:5173",
             HTTP_ACCESS_CONTROL_REQUEST_METHOD="POST",
             HTTP_ACCESS_CONTROL_REQUEST_HEADERS="Content-Type",
         )
+        self.assertEqual(resp.status_code, 204)
+        self.assertEqual(resp["Access-Control-Allow-Origin"], "http://localhost:5173")
+        self.assertIn("POST", resp["Access-Control-Allow-Methods"])
+        self.assertEqual(resp["Access-Control-Allow-Headers"], "Content-Type")
 
     def test_non_api_404_returns_html(self):
         client = Client()

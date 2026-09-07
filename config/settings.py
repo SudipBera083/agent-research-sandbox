@@ -51,13 +51,23 @@ DEBUG = True
 ALLOWED_HOSTS = (
     os.getenv("ALLOWED_HOSTS", "").split(",")
     if os.getenv("ALLOWED_HOSTS")
-    else [".vercel.app", "localhost", "127.0.0.1","*"]
+    else [".vercel.app", "localhost", "127.0.0.1", "testserver"]
 )
 
-# CORS: Allowed origins for Vercel frontend
-CORS_ALLOWED_ORIGINS = os.getenv(
-    "CORS_ALLOWED_ORIGINS", ""
-).split(",") if os.getenv("CORS_ALLOWED_ORIGINS") else []
+# CORS: Allow frontend origins (local Vite, Next.js, and Vercel deployments)
+CORS_ALLOW_ALL_ORIGINS = (
+    os.getenv("CORS_ALLOW_ALL_ORIGINS", "true").lower() in ("true", "1", "yes")
+)
+
+_cors_env = os.getenv("CORS_ALLOWED_ORIGINS", "")
+CORS_ALLOWED_ORIGINS = [
+    orig.strip() for orig in _cors_env.split(",") if orig.strip()
+] if _cors_env else [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+]
 
 
 # Application definition
@@ -78,6 +88,8 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    # Step 33 & CORS: CORS middleware must be at the top so all responses (including redirects and error shields) have CORS headers
+    'experiments.middleware.SimpleCORSMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -85,8 +97,6 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    # Step 33: JSON error responses and CORS for production
-    'experiments.middleware.SimpleCORSMiddleware',
     'experiments.middleware.JSONNotFoundMiddleware',
     'experiments.middleware.JSONServerErrorMiddleware',
 ]

@@ -60,41 +60,65 @@ class JSONServerErrorMiddleware(MiddlewareMixin):
 
 
 class SimpleCORSMiddleware(MiddlewareMixin):
-    """Minimal CORS middleware for the Vercel frontend.
+    """CORS middleware for frontend API requests.
 
-    Allows configurable origins via CORS_ALLOWED_ORIGINS setting.
-    Does not require django-cors-headers.
+    Supports:
+    - CORS_ALLOW_ALL_ORIGINS (bool)
+    - CORS_ALLOWED_ORIGINS (list/set of origins, supports '*' and wildcard checks)
+    - Automatic handling of OPTIONS preflight requests (204 No Content)
+    - Safe handling of all standard API methods and headers
+    - Dynamic configuration via django.conf.settings (friendly with override_settings)
     """
 
     sync_capable = True
     async_capable = False
 
-    def __init__(self, get_response):
-        super().__init__(get_response)
-        self.allowed_origins = self._load_allowed_origins()
+    def _is_origin_allowed(self, origin: str | None) -> bool:
+        if not origin:
+            return False
 
-    def _load_allowed_origins(self):
         from django.conf import settings
-        return set(getattr(settings, "CORS_ALLOWED_ORIGINS", []))
 
-    def process_response(self, request, response):
-        origin = request.headers.get("Origin")
-        if origin and origin in self.allowed_origins:
-            response["Access-Control-Allow-Origin"] = origin
-            response["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
-            response["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
-            response["Access-Control-Max-Age"] = "3600"
+        if getattr(settings, "CORS_ALLOW_ALL_ORIGINS", False):
+            return True
+
+        allowed = set(getattr(settings, "CORS_ALLOWED_ORIGINS", []))
+        if "*" in allowed:
+            return True
+
+        if origin in allowed:
+            return True
+
+        # Automatically allow localhost and 127.0.0.1 on any port in development
+        if origin.startswith("http://localhost:") or origin.startswith("http://127.0.0.1:"):
+            return True
+
+        return False
+
+    def _apply_cors_headers(self, response, origin: str, request=None):
+        response["Access-Control-Allow-Origin"] = origin
+        response["Access-Control-Allow-Methods"] = "GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD"
+        req_headers = request.headers.get("Access-Control-Request-Headers") if request else None
+        response["Access-Control-Allow-Headers"] = (
+            req_headers
+            if req_headers
+            else "Content-Type, Authorization, X-Requested-With, Accept, Origin, Cache-Control, Last-Event-ID"
+        )
+        response["Access-Control-Max-Age"] = "86400"
         return response
 
     def process_request(self, request):
         if request.method == "OPTIONS":
             from django.http import HttpResponse
+
             origin = request.headers.get("Origin")
-            if origin and origin in self.allowed_origins:
+            if self._is_origin_allowed(origin):
                 resp = HttpResponse(status=204)
-                resp["Access-Control-Allow-Origin"] = origin
-                resp["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
-                resp["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
-                resp["Access-Control-Max-Age"] = "3600"
-                return resp
+                return self._apply_cors_headers(resp, origin, request)
         return None
+
+    def process_response(self, request, response):
+        origin = request.headers.get("Origin")
+        if self._is_origin_allowed(origin):
+            self._apply_cors_headers(response, origin, request)
+        return response
