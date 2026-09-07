@@ -10,6 +10,7 @@ export const eventTypes = EVENT_TYPES;
 
 export function normalizeApiBase(value) {
   const base = String(value || '').trim().replace(/\/+$/, '');
+  if (base === '') return '';
   if (!/^https?:\/\//i.test(base)) throw new Error('Enter the complete HTTP(S) backend URL, for example https://api.example.com.');
   const url = new URL(base);
   if (url.username || url.password || url.search || url.hash) throw new Error('Use a backend URL without credentials, query parameters, or fragments.');

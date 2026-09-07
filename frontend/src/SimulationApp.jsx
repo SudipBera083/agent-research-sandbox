@@ -3,7 +3,7 @@ import { createEventStream, getAgentEvents, getEvents, getSnapshot, lifecycle, n
 import { applyEvent, mergeEvents, modelFromSnapshot } from './simulationState.js';
 import './simulation.css';
 
-const defaultBase = import.meta.env.VITE_API_BASE_URL || 'https://agent-research-sandbox.vercel.app';
+const defaultBase = import.meta.env.VITE_API_BASE_URL || '';
 const eventLabel = type => String(type || 'event').replaceAll('.', ' ');
 const fmt = value => value == null ? 'N/A' : typeof value === 'number' ? value.toLocaleString(undefined, { maximumFractionDigits: 2 }) : String(value);
 const ago = timestamp => { const date = new Date(timestamp); return Number.isNaN(date.valueOf()) ? 'recently' : date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }); };
