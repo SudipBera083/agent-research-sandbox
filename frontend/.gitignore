@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.npm-cache/
+.vercel/
+.env*
+!.env.example
+
+.browser-preview/
+.vercel
