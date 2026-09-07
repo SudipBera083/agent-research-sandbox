@@ -33,6 +33,15 @@ DEFAULT_AGENTS = [
 class Command(BaseCommand):
     help = "Seed initial demo simulation with agents and baseline event history (idempotent)"
 
+    def add_arguments(self, parser):
+        parser.add_argument(
+            "--noinput",
+            "--no-input",
+            action="store_false",
+            dest="interactive",
+            help="Do not prompt the user for input of any kind.",
+        )
+
     def handle(self, *args, **options):
         if Simulation.objects.filter(id=1).exists():
             self.stdout.write(
